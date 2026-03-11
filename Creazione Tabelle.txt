@@ -1,0 +1,193 @@
+CREATE DATABASE ospedale;
+USE ospedale;
+-- \c ospedale;
+
+CREATE TABLE Ospedale (
+    CodiceOspedale CHAR(6) PRIMARY KEY,
+    Nome VARCHAR(20) NOT NULL,
+    Indirizzo VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE ProntoSoccorso (
+    CodiceProntoSoccorso CHAR(6) PRIMARY KEY,
+    Ospedale CHAR(6) NOT NULL REFERENCES Ospedale(CodiceOspedale) ON DELETE NO ACTION ON UPDATE CASCADE
+);
+
+CREATE TABLE Reparto (
+    CodiceReparto CHAR(6) PRIMARY KEY,
+    Ospedale CHAR(6) NOT NULL REFERENCES Ospedale(CodiceOspedale) ON DELETE NO ACTION ON UPDATE CASCADE,
+    Nome VARCHAR(20) NOT NULL,
+    NumeroTelefono VARCHAR(15) NOT NULL,
+    InizioOrarioVisita TIME NOT NULL,
+    FineOrarioVisita TIME NOT NULL,
+    CHECK (InizioOrarioVisita < FineOrarioVisita),
+    UNIQUE(Ospedale, Nome)
+);
+
+CREATE TABLE PersonaleAmministrativo (
+    CF CHAR(16) PRIMARY KEY,
+    Reparto CHAR(6) NOT NULL REFERENCES Reparto(CodiceReparto) ON DELETE NO ACTION ON UPDATE CASCADE,
+    Nome VARCHAR(15) NOT NULL,
+    Cognome VARCHAR(15) NOT NULL,
+    DataNascita DATE NOT NULL,
+    UNIQUE(Nome, Cognome, DataNascita)
+);
+
+CREATE TABLE Infermiere (
+    CF CHAR(16) PRIMARY KEY,
+    Reparto CHAR (6) NOT NULL REFERENCES Reparto(CodiceReparto) ON DELETE NO ACTION ON UPDATE CASCADE,
+    Nome VARCHAR(15) NOT NULL,
+    Cognome VARCHAR(15) NOT NULL,
+    DataNascita DATE NOT NULL,
+    UNIQUE(Nome, Cognome, DataNascita)
+);
+
+CREATE TABLE PersonaleMedico (
+    CF CHAR(16) PRIMARY KEY,
+    Reparto CHAR (6) NOT NULL REFERENCES Reparto(CodiceReparto) ON DELETE NO ACTION ON UPDATE CASCADE,
+    Nome VARCHAR(15) NOT NULL,
+    Cognome VARCHAR(15) NOT NULL,
+    DataNascita DATE NOT NULL,
+    AnzianitaServizio DECIMAL(2, 0) NOT NULL,
+    UNIQUE(Nome, Cognome, DataNascita)
+);
+
+CREATE TABLE Specializzazione (
+    Tipo VARCHAR(20) PRIMARY KEY
+);
+
+CREATE TABLE Stanza (
+    CodiceStanza CHAR(6) PRIMARY KEY,
+    Numero DECIMAL(4, 0) NOT NULL,
+    Reparto CHAR(6) NOT NULL REFERENCES Reparto(CodiceReparto) ON DELETE NO ACTION ON UPDATE CASCADE,
+    LettiOccupati DECIMAL(5, 0) NOT NULL,
+    LettiTotali DECIMAL(5, 0) NOT NULL,
+    CHECK (LettiOccupati <= LettiTotali),
+    UNIQUE(Numero, Reparto)
+);
+
+CREATE TABLE SalaOperatoria (
+    CodiceSalaOperatoria CHAR (6) PRIMARY KEY,
+    Reparto CHAR (6) NOT NULL REFERENCES Reparto(CodiceReparto) ON DELETE NO ACTION ON UPDATE CASCADE
+);
+
+CREATE TABLE LaboratorioAmbulatorio (
+    CodiceLabAmb CHAR(6) PRIMARY KEY,
+    Tipo CHAR(8) NOT NULL,
+    Piano DECIMAL(2, 0),
+    OrarioApertura TIME,
+    OrarioChiusura TIME,
+    NumeroTelefono VARCHAR(15),
+    Indirizzo VARCHAR(50),
+    CHECK (OrarioApertura < OrarioChiusura)
+);
+
+CREATE TABLE Paziente (
+    TesseraSanitaria CHAR(20) PRIMARY KEY,
+    Nome VARCHAR(15) NOT NULL,
+    Cognome VARCHAR(15) NOT NULL,
+    DataNascita DATE NOT NULL,
+    UNIQUE(Nome, Cognome, DataNascita)
+);
+
+CREATE TABLE PazienteRicoverato (
+    CodiceRicovero CHAR(6) PRIMARY KEY,
+    TesseraSanitaria CHAR(20) NOT NULL REFERENCES Paziente(TesseraSanitaria) ON DELETE NO ACTION ON UPDATE CASCADE,
+    DataRicovero DATE NOT NULL,
+    Patologie VARCHAR(50) NOT NULL,
+    Stanza CHAR(6) REFERENCES Stanza(CodiceStanza) ON DELETE NO ACTION ON UPDATE CASCADE,
+    UNIQUE(TesseraSanitaria, DataRicovero, Patologie)
+);
+
+CREATE TABLE PazienteDimesso(
+    CodiceRicovero CHAR(6) PRIMARY KEY REFERENCES PazienteRicoverato(CodiceRicovero) ON DELETE NO ACTION ON UPDATE CASCADE,
+    DataDimissione DATE NOT NULL
+);
+
+CREATE TABLE VicePrimario (
+    CF CHAR(16) PRIMARY KEY REFERENCES PersonaleMedico(CF) ON DELETE NO ACTION ON UPDATE CASCADE,
+    Reparto CHAR(6) NOT NULL REFERENCES Reparto(CodiceReparto) ON DELETE NO ACTION ON UPDATE CASCADE,
+    DataAssunzioneRuolo DATE NOT NULL
+);
+
+CREATE TABLE Primario (
+    CF CHAR(16) PRIMARY KEY REFERENCES PersonaleMedico(CF) ON DELETE NO ACTION ON UPDATE CASCADE,
+    Reparto CHAR(6) NOT NULL REFERENCES Reparto(CodiceReparto) ON DELETE NO ACTION ON UPDATE CASCADE
+);
+
+CREATE TABLE TurnoLavorativoInfermiere (
+    CodiceTurno CHAR(6) PRIMARY KEY,
+    Infermiere CHAR(16) REFERENCES Infermiere(CF) ON DELETE NO ACTION ON UPDATE CASCADE,
+    ProntoSoccorso CHAR(6) NOT NULL REFERENCES ProntoSoccorso(CodiceProntoSoccorso) ON DELETE NO ACTION ON UPDATE CASCADE,
+    OraInizio TIME NOT NULL, 
+    OraFine TIME NOT NULL,
+    Data DATE NOT NULL,
+    CHECK (OraInizio < OraFine),
+    UNIQUE (OraInizio, Data, Infermiere)
+);
+
+CREATE TABLE TurnoLavorativoMedico (
+    CodiceTurno CHAR(6) PRIMARY KEY,
+    PersonaleMedico CHAR(16) REFERENCES PersonaleMedico(CF) ON DELETE NO ACTION ON UPDATE CASCADE,
+    ProntoSoccorso CHAR(6) NOT NULL REFERENCES ProntoSoccorso(CodiceProntoSoccorso) ON DELETE NO ACTION ON UPDATE CASCADE,
+    OraInizio TIME NOT NULL, 
+    OraFine TIME NOT NULL,
+    Data DATE NOT NULL,
+    CHECK (OraInizio < OraFine),
+    UNIQUE (OraInizio, Data, PersonaleMedico)
+);
+
+CREATE TABLE Sostituzione (
+    CodiceSostituzione CHAR(6) PRIMARY KEY,
+    DataInizio DATE NOT NULL,
+    VicePrimario CHAR(16) NOT NULL REFERENCES VicePrimario(CF) ON DELETE NO ACTION ON UPDATE CASCADE,
+    Primario CHAR(16) NOT NULL REFERENCES Primario(CF) ON DELETE NO ACTION ON UPDATE CASCADE,
+    DataFine DATE NOT NULL,
+    CHECK (DataInizio <= DataFine),
+    UNIQUE (VicePrimario, DataInizio)
+);
+
+CREATE TABLE Dispone (
+    Ospedale CHAR(6) NOT NULL REFERENCES Ospedale(CodiceOspedale) ON DELETE NO ACTION ON UPDATE CASCADE,
+    LaboratorioAmbulatorio CHAR(6) NOT NULL REFERENCES LaboratorioAmbulatorio(CodiceLabAmb) ON DELETE NO ACTION ON UPDATE CASCADE,
+    PRIMARY KEY(Ospedale, LaboratorioAmbulatorio)
+);
+
+CREATE TABLE Collocata (
+    LaboratorioAmbulatorio CHAR(6) NOT NULL REFERENCES LaboratorioAmbulatorio(CodiceLabAmb) ON DELETE NO ACTION ON UPDATE CASCADE,
+    Stanza CHAR(6) NOT NULL REFERENCES Stanza(CodiceStanza) ON DELETE NO ACTION ON UPDATE CASCADE,
+    PRIMARY KEY (LaboratorioAmbulatorio, Stanza)
+);
+
+CREATE TABLE Ottenuto (
+    Specializzazione VARCHAR(20) NOT NULL REFERENCES Specializzazione(Tipo) ON DELETE NO ACTION ON UPDATE CASCADE,
+    Primario CHAR(16) NOT NULL REFERENCES Primario(CF) ON DELETE NO ACTION ON UPDATE CASCADE,
+    PRIMARY KEY(Specializzazione, Primario)
+);
+
+CREATE TABLE Esame (
+    CodiceEsame CHAR(6) PRIMARY KEY,
+    CodiceMedico CHAR(16) DEFAULT NULL REFERENCES PersonaleMedico(CF) ON DELETE NO ACTION ON UPDATE CASCADE,
+    Descrizione VARCHAR(50) NOT NULL,
+    CostoAssistenzaSanitaria DECIMAL(6,2) NOT NULL,
+    CostoPrivato DECIMAL(6,2) NOT NULL,
+    Avvertenze VARCHAR(100),
+    CHECK (CostoAssistenzaSanitaria > 0),
+    CHECK (CostoPrivato > 0)
+);
+
+CREATE TABLE Prenotazione (
+    CodicePrenotazione VARCHAR(6) PRIMARY KEY,
+    LaboratorioAmbulatorio CHAR(6) NOT NULL REFERENCES LaboratorioAmbulatorio(CodiceLabAmb) ON DELETE NO ACTION ON UPDATE CASCADE,
+    TesseraSanitaria CHAR(20) NOT NULL REFERENCES Paziente(TesseraSanitaria) ON DELETE NO ACTION ON UPDATE CASCADE,
+    CodiceEsame CHAR(6) NOT NULL REFERENCES Esame(CodiceEsame) ON DELETE NO ACTION ON UPDATE CASCADE,
+    OraEsame TIME NOT NULL,
+    DataPrenotazione DATE NOT NULL,
+    RegimeCosto VARCHAR(10) NOT NULL,
+    Urgenza VARCHAR(6) NOT NULL,
+    DataEsame DATE NOT NULL,
+    CHECK (DataPrenotazione <= DataEsame),
+    UNIQUE(TesseraSanitaria, CodiceEsame, DataEsame)
+);
+
+
